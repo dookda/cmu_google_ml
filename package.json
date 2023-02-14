@@ -22,6 +22,7 @@
     "express": "^4.18.2",
     "languagedetect": "^2.0.0",
     "natural": "^6.2.0",
+    "pg": "^8.9.0",
     "streetview-panorama": "^1.0.4"
   }
 }

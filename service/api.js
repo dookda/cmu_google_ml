@@ -4,14 +4,18 @@ const https = require('https');
 const fs = require('fs');
 const axios = require('axios');
 
+const db = require("./db").db;
+
+const streetview = require('streetview-panorama')
+const vision = require('@google-cloud/vision');
+const language = require('@google-cloud/language');
+const LanguageDetect = require('languagedetect');
+
+// const API_KEY = 'AIzaSyA72CE12t6VF1MHjQLbz8Y7tH2eVrR5EzQ';
+const API_KEY = 'AIzaSyCh1ys7pwGD8NcT9ty5XLmEvlpLm-NAjK8';
+
 async function detectLabel() {
-    // Imports the Google Cloud client library
-    const vision = require('@google-cloud/vision');
-
-    // Creates a client
     const client = new vision.ImageAnnotatorClient();
-
-    // Performs label detection on the image file
     const [result] = await client.labelDetection('./resources/wakeupcat.jpg');
     const labels = result.labelAnnotations;
 
@@ -19,11 +23,8 @@ async function detectLabel() {
     labels.forEach(label => textArr.push(label.description));
     return textArr
 }
-// detectLabel()
 
 async function detectLanguage() {
-    const vision = require('@google-cloud/vision');
-    const language = require('@google-cloud/language');
     const client = new vision.ImageAnnotatorClient();
     const lclient = new language.LanguageServiceClient();
 
@@ -33,7 +34,6 @@ async function detectLanguage() {
     const detections = result.textAnnotations;
     console.log(`Text: ${detections[0].description}`);
 
-    // Classifies the text to determine its language
     const [classification] = await lclient.classifyText({
         document: {
             content: detections[0].description,
@@ -41,23 +41,13 @@ async function detectLanguage() {
         }
     });
 
-    // Extracts the language code from the classification result
     const languageCode = classification.languages[0].languageCode;
     console.log(`Language: ${languageCode}`);
-
 }
-// detectLanguage()
 
 async function getStreetView() {
-    const API_KEY = 'AIzaSyA72CE12t6VF1MHjQLbz8Y7tH2eVrR5EzQ';
     // const BASE_URL = 'https://maps.googleapis.com/maps/api/streetview/metadata';
     const BASE_URL = 'https://maps.googleapis.com/maps/api/streetview';
-
-    // const lat = 37.869260;
-    // const lng = -122.254811;
-    // const size = '900x700';
-    // const location = `${lat},${lng}`;
-
     const lat = 16.7447112;
     const lng = 100.1992181;
     const heading = 0;
@@ -67,7 +57,6 @@ async function getStreetView() {
 
     const imgUrl = `${BASE_URL}?size=${size}&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${API_KEY}`;
     const metaUrl = `${BASE_URL}/metadata?size=${size}&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${API_KEY}`;
-
 
     axios.get(metaUrl).then((res) => {
         const data = res.data;
@@ -90,69 +79,57 @@ async function getStreetView() {
                     })
                 });
             })
-                .catch((error) => {
-                    console.error(error);
-                });
         } else {
             console.error('No street view image found for the specified location.');
         }
     })
-        .catch((error) => {
-            console.error(error);
-        });
+}
 
+// inert to db
+async function saveTodb(textArr, pano_id) {
+    const sql = `INSERT INTO imgtotxt(pano_id,txt)VALUES('${pano_id}', '${textArr}')`
+    db.query(sql).then(r => console.log("ok"))
+}
 
-    // axios.get(imgUrl).then((response) => {
-    //     const fileName = './resources/' + response.data.pano_id + '.jpg';
-    //     console.log(fileName);
-    //     https.get(url, (response) => {
-    //         response.pipe(fs.createWriteStream(fileName))
+async function detectLanguage(textArr) {
+    const langDetect = new LanguageDetect();
+    langDetect.setLanguageType('iso2');
 
-    //         detectText(fileName).then((data) => {
-    //             console.log(data)
-    //         })
-    //     })
-    // });
+    const data = {}
+    textArr.forEach(value => {
+        const result = langDetect.detect(value);
+        data[value] = (result.find(v => v[0] != null) || [null])[0];
+    })
+    console.log(data);
 }
 
 // detect Text
-async function detectText(fileName) {
-    const vision = require('@google-cloud/vision');
-    const LanguageDetect = require('languagedetect');
-    const lngDetector = new LanguageDetect();
-
+async function detectText(fileName, pano_id) {
     const client = new vision.ImageAnnotatorClient();
     const [result] = await client.textDetection(fileName);
     const detections = result.textAnnotations;
-    let query = 'Google';
-    let langArr = [];
-    let textArr = detections.filter(item => item.description.indexOf(query) < 0).map(item => {
-        // langArr.push(detector.detect(item.description))
-        const text = "This is a sample text.";
-        const lang = lngDetector.detect(item.description, 1);
-        console.log(item.description, lang);
-    });
-    // console.log(textArr, langArr);
+    let query = ['Google', '2012', '2013', '2023', '|', '-', ':', '.', '©', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    // let textArr = await detections.filter(item => item.description.indexOf(query) < 0).map(item => item.description);
+    let textArr = await detections.filter(item => item.description.indexOf(query[0]) < 0).filter(item => !query.includes(item.description)).map(item => item.description);
+    await saveTodb(textArr, pano_id);
+    await detectLanguage(textArr);
 }
 
 const getImage = (pano_id) => {
-    const streetview = require('streetview-panorama')
     streetview.saveImg({ id: pano_id, type: "google", fileName: './panorama/' })
     setTimeout(() => {
-        detectText('./panorama/' + pano_id + '.png')
+        detectText('./panorama/' + pano_id + '.png', pano_id)
     }, 1000)
 }
 
 const downloadStreetview = (url, fileName) => {
-    const API_KEY = 'AIzaSyA72CE12t6VF1MHjQLbz8Y7tH2eVrR5EzQ';
     const BASE_URL = 'https://maps.googleapis.com/maps/api/streetview/metadata';
-    const lat = 16.7447112;
-    const lng = 100.1992181;
+    const lat = 18.796897686427954;
+    const lng = 98.96623102990253;
     const heading = 0;
     const fov = 180;
     const pitch = 0;
     const size = '2048x2048';
-
     const imgUrl = `${BASE_URL}?size=${size}&location=${lat},${lng}&heading=${heading}&pitch=${pitch}&fov=${fov}&key=${API_KEY}`;
 
     axios.get(imgUrl).then((res) => {
@@ -162,8 +139,7 @@ const downloadStreetview = (url, fileName) => {
 }
 
 downloadStreetview()
-
-app.get('/label', (req, res) => {
+app.get('/img2text', (req, res) => {
     const dat = detectLabel()
     res.json({ data: 'Label detection done' })
 })
