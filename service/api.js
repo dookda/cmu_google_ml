@@ -1,7 +1,5 @@
 const express = require('express');
 const app = express.Router();
-const https = require('https');
-const fs = require('fs');
 const axios = require('axios');
 
 const db = require("./db").db;
@@ -14,21 +12,80 @@ const LanguageDetect = require('languagedetect');
 // const API_KEY = 'AIzaSyA72CE12t6VF1MHjQLbz8Y7tH2eVrR5EzQ';
 const API_KEY = 'AIzaSyCh1ys7pwGD8NcT9ty5XLmEvlpLm-NAjK8';
 
+const fs = require('fs');
+
+
+async function multipleObject(fileName) {
+    const client = new vision.ImageAnnotatorClient();
+    const request = {
+        image: { content: fs.readFileSync(fileName) },
+    };
+
+    const [result] = await client.objectLocalization(request);
+    const objects = result.localizedObjectAnnotations;
+    objects.forEach(object => {
+        console.log(`Name: ${object.name}`);
+        console.log(`Confidence: ${object.score}`);
+        const vertices = object.boundingPoly.normalizedVertices;
+        vertices.forEach(v => console.log(`x: ${v.x}, y:${v.y}`));
+    });
+}
+async function logoDetection(fileName) {
+    const client = new vision.ImageAnnotatorClient();
+    const [result] = await client.logoDetection(fileName);
+    const logos = result.logoAnnotations;
+    console.log('Logos:');
+    logos.forEach(logo => console.log(logo));
+}
+
+async function imageProperties(fileName) {
+    const client = new vision.ImageAnnotatorClient();
+    const [result] = await client.imageProperties(fileName);
+    const colors = result.imagePropertiesAnnotation.dominantColors.colors;
+    colors.forEach(color => console.log(color));
+}
+
+async function faceDetection(fileName) {
+    const client = new vision.ImageAnnotatorClient();
+    const [result] = await client.faceDetection(fileName);
+    const faces = result.faceAnnotations;
+    console.log('Faces:');
+    faces.forEach((face, i) => {
+        console.log(`  Face #${i + 1}:`);
+        console.log(`    Joy: ${face.joyLikelihood}`);
+        console.log(`    Anger: ${face.angerLikelihood}`);
+        console.log(`    Sorrow: ${face.sorrowLikelihood}`);
+        console.log(`    Surprise: ${face.surpriseLikelihood}`);
+    });
+}
+
+async function landmarkDetection(fileName) {
+    const client = new vision.ImageAnnotatorClient();
+    const [result] = await client.landmarkDetection(fileName);
+    const landmarks = result.landmarkAnnotations;
+    console.log('Landmarks:');
+    landmarks.forEach(landmark => console.log(landmark));
+}
+
 async function detectLabel() {
     const client = new vision.ImageAnnotatorClient();
-    const [result] = await client.labelDetection('./resources/wakeupcat.jpg');
+    const [result] = await client.labelDetection('./resources/maxresdefault.jpg');
     const labels = result.labelAnnotations;
 
     const textArr = []
-    labels.forEach(label => textArr.push(label.description));
+    labels.forEach(label => {
+        console.log(label);
+        textArr.push(label.description)
+    });
+    // console.log(textArr);
     return textArr
 }
 
-async function detectLanguage() {
+async function detectLanguage(fileName) {
     const client = new vision.ImageAnnotatorClient();
     const lclient = new language.LanguageServiceClient();
 
-    const fileName = './resources/329752910_2310907935755947_2807452803581570946_n.jpg';
+    // const fileName = './resources/329752910_2310907935755947_2807452803581570946_n.jpg';
     // Detects text in the image
     const [result] = await client.textDetection(fileName);
     const detections = result.textAnnotations;
@@ -138,7 +195,16 @@ const downloadStreetview = (url, fileName) => {
     })
 }
 
-downloadStreetview()
+
+
+// detectLabel()
+// downloadStreetview()
+// landmarkDetection('./resources/doi.webp');
+// faceDetection('./resources/woman2.jpeg')
+// imageProperties('./resources/woman2.jpeg')
+// logoDetection('./resources/market.jpeg')
+multipleObject('./resources/market.jpeg')
+
 app.get('/img2text', (req, res) => {
     const dat = detectLabel()
     res.json({ data: 'Label detection done' })
