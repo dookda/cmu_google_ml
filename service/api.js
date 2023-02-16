@@ -9,7 +9,6 @@ const vision = require('@google-cloud/vision');
 const language = require('@google-cloud/language');
 const LanguageDetect = require('languagedetect');
 
-// const API_KEY = 'AIzaSyA72CE12t6VF1MHjQLbz8Y7tH2eVrR5EzQ';
 const API_KEY = '';
 
 const fs = require('fs');
