@@ -10,7 +10,7 @@ const language = require('@google-cloud/language');
 const LanguageDetect = require('languagedetect');
 
 // const API_KEY = 'AIzaSyA72CE12t6VF1MHjQLbz8Y7tH2eVrR5EzQ';
-const API_KEY = 'AIzaSyCh1ys7pwGD8NcT9ty5XLmEvlpLm-NAjK8';
+const API_KEY = '';
 
 const fs = require('fs');
 
@@ -150,7 +150,7 @@ async function saveTodb(textArr, pano_id) {
 
 async function detectLanguage(textArr) {
     const langDetect = new LanguageDetect();
-    langDetect.setLanguageType('iso2');
+    // langDetect.setLanguageType('iso2');
 
     const data = {}
     textArr.forEach(value => {
@@ -181,8 +181,8 @@ const getImage = (pano_id) => {
 
 const downloadStreetview = (url, fileName) => {
     const BASE_URL = 'https://maps.googleapis.com/maps/api/streetview/metadata';
-    const lat = 18.796897686427954;
-    const lng = 98.96623102990253;
+    const lat = 50.450717;
+    const lng = 30.523825;
     const heading = 0;
     const fov = 180;
     const pitch = 0;
@@ -198,12 +198,12 @@ const downloadStreetview = (url, fileName) => {
 
 
 // detectLabel()
-// downloadStreetview()
+downloadStreetview()
 // landmarkDetection('./resources/doi.webp');
 // faceDetection('./resources/woman2.jpeg')
 // imageProperties('./resources/woman2.jpeg')
 // logoDetection('./resources/market.jpeg')
-multipleObject('./resources/market.jpeg')
+// multipleObject('./resources/market.jpeg')
 
 app.get('/img2text', (req, res) => {
     const dat = detectLabel()
